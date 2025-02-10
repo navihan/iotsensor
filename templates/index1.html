@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>실시간 온습도 모니터링</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h2>실시간 온습도 데이터</h2>
+    <p>온도: <span id="temperature">--</span>°C</p>
+    <p>습도: <span id="humidity">--</span>%</p>
+
+    <canvas id="sensorChart"></canvas>
+
+    <script>
+        var socket = io.connect("http://" + document.domain + ":" + location.port);
+        var ctx = document.getElementById("sensorChart").getContext("2d");
+
+        var labels = [];
+        var tempData = [];
+        var humData = [];
+
+        var chart = new Chart(ctx, {
+            type: "line",
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: "온도 (°C)",
+                        data: tempData,
+                        borderColor: "red",
+                        fill: false
+                    },
+                    {
+                        label: "습도 (%)",
+                        data: humData,
+                        borderColor: "blue",
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: { type: "linear", position: "bottom" },
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+
+        socket.on("update_sensor", function(data) {
+            document.getElementById("temperature").innerText = data.temperature;
+            document.getElementById("humidity").innerText = data.humidity;
+
+            if (labels.length > 60) {
+                labels.shift();
+                tempData.shift();
+                humData.shift();
+            }
+
+            labels.push(new Date().toLocaleTimeString());
+            tempData.push(data.temperature);
+            humData.push(data.humidity);
+
+            chart.update();
+        });
+    </script>
+</body>
+</html>
