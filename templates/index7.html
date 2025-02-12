@@ -3,77 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>온습도 실시간 모니터링</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.min.js"></script> <!-- Socket.IO 라이브러리 로드 -->
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <style>
-        body { font-family: Arial, sans-serif; text-align: center; margin: 20px; }
-        .container { max-width: 400px; margin: auto; padding: 20px; border: 1px solid #ddd; border-radius: 10px; box-shadow: 2px 2px 10px #ccc; }
-        h1 { color: #333; }
-        p { font-size: 20px; margin: 10px 0; }
-        .data-box { padding: 15px; background-color: #f4f4f4; border-radius: 5px; }
-        button { padding: 10px 20px; font-size: 16px; margin-top: 10px; cursor: pointer; }
-        .on { background-color: green; color: white; }
-        .off { background-color: red; color: white; }
-    </style>
+    <title>실시간 온습도 데이터</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
 </head>
 <body>
-
-    <h1>온습도 실시간 데이터</h1>
-    <p>온도: <span id="temperature">--</span> °C</p>
-    <p>습도: <span id="humidity">--</span> %</p>
-    <p>상태: <span id="sensor-state">OFF</span></p>
-    <button id="toggle-btn">센서 ON/OFF</button>
+    <h2>실시간 온도 및 습도 데이터</h2>
+    <p>🌡️ 온도: <span id="temperature">-</span> °C</p>
+    <p>💧 습도: <span id="humidity">-</span> %</p>
 
     <script>
-        let socket = io.connect("ws://192.168.45.145:7000");
-        const sensorStateElement = document.getElementById("sensor-state");
-        const toggleButton = document.getElementById("toggle-btn");
+        var socket = io("ws://localhost:7000");
 
-        // WebSocket 연결 확인
-        socket.on("connect", function () {
-            console.log("✅ WebSocket 연결 성공!");
-
+        socket.on("connect", function() {
+            console.log("✅ WebSocket 연결 성공");
         });
 
-       // 🔥 센서 데이터 수신
-       socket.on("update_data", function (data) {
+        socket.on("update_data", function(data) {
             console.log("📥 데이터 수신:", data);
-            if (data.state === "on") {
-                document.getElementById("temperature").innerText = data.temperature;
-                document.getElementById("humidity").innerText = data.humidity;
-            } else {
-                document.getElementById("temperature").innerText = "--";
-                document.getElementById("humidity").innerText = "--";
-            }
-        });        
-
-        // 센서 상태 변경 감지
-        socket.on("sensor_state", function (data) {
-            console.log("🔄 센서 상태 업데이트:", data.state);
-            sensorStateElement.innerText = data.state.toUpperCase();
-            toggleButton.innerText = data.state === "on" ? "센서 OFF" : "센서 ON";
-            // 센서가 "off" 상태면 화면에서 값 숨기기
-            if (data.state === "off" || data.state == null) {
-                document.getElementById("temperature").innerText = "--";
-                document.getElementById("humidity").innerText = "--";
-            }
+            document.getElementById("temperature").innerText = data.temperature;
+            document.getElementById("humidity").innerText = data.humidity;
         });
 
-        // 🔥 버튼 클릭 시 센서 ON/OFF 전환 요청
-        toggleButton.addEventListener("click", function () {
-            socket.emit("toggle_sensor");
-        });        
-
-          // WebSocket 연결 종료 시 알림
-        socket.on("disconnect", function () {
-            console.log("❌ WebSocket 연결 끊김!..대기중");
-            setTimeout(() => {
-                socket.connect(); // WebSocket 재연결
-            }, 1000);
-         });
-         
+        socket.on("disconnect", function() {
+            console.log("❌ WebSocket 연결 끊김");
+        });
     </script>
-
 </body>
 </html>
