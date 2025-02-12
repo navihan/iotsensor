@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket 테스트</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
+</head>
+<body>
+    <h2>Flask-SocketIO WebSocket 테스트</h2>
+    <input type="text" id="msgInput" placeholder="메시지 입력">
+    <button onclick="sendMessage()">전송</button>
+    <p id="response"></p>
+
+    <script>
+        var socket = io("ws://localhost:7000");
+
+        socket.on("connect", function() {
+            console.log("✅ WebSocket 연결 성공");
+        });
+
+        socket.on("message", function(data) {
+            console.log("📥 서버 응답:", data);
+            document.getElementById("response").innerText = data;
+        });
+
+        socket.on("disconnect", function() {
+            console.log("❌ WebSocket 연결 끊김");
+        });
+
+        function sendMessage() {
+            let msg = document.getElementById("msgInput").value;
+            socket.send(msg);
+            console.log("📤 메시지 전송:", msg);
+        }
+    </script>
+</body>
+</html>
