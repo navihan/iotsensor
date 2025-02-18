@@ -1,4 +1,8 @@
-from flask import Flask, Response, request, render_template
+import eventlet
+# Eventlet 서버 실행을 위한 코드
+eventlet.monkey_patch()
+
+from flask import Flask, Response, request, jsonify, render_template
 from flask_socketio import SocketIO
 import time
 import threading
@@ -10,12 +14,11 @@ from datetime import datetime
 import pymysql
 import Adafruit_DHT
 import json
-import eventlet
 from flask_cors import CORS
 
 app = Flask(__name__)
-socketio = SocketIO(app, async_mode="threading", cors_allowed_origins="*")  # CORS 허용
-
+#socketio = SocketIO(app, async_mode="threading", cors_allowed_origins="*")  # CORS 허용
+socketio = SocketIO(app, async_mode="eventlet")  
 
 # 데이터베이스 설정
 DB_CONFIG = {
@@ -42,7 +45,8 @@ sensor_state = "off"  # 초기 상태는 off
 
 @app.route("/")
 def index():
-    return render_template("index73.html")
+    today = datetime.now().strftime('%Y-%m-%d')
+    return render_template('index73.html', today=today)
 
 # 🔥 센서 상태를 변경하는 함수
 def update_sensor_state(state):
@@ -99,15 +103,24 @@ def toggle_sensor():
 
 
 # 백그라운드에서 센서 데이터 전송 스레드 실행
-thread = threading.Thread(target=collect_sensor_data)
-thread.daemon = True
-thread.start()
+#thread = threading.Thread(target=collect_sensor_data)
+#thread.daemon = True
+#thread.start()
 
 
 @app.route('/download_excel')
 def download_excel():
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
+
+    # 오늘 날짜 기본값 설정
+    today = datetime.now().strftime('%Y-%m-%d')
+
+    # 시작일 (YYYY-MM-DD 형식 입력 시 00:00:00으로 설정)
+    start_date = request.args.get('start_date', today)
+    start_datetime = f"{start_date} 00:00:00"
+
+    # 종료일 (YYYY-MM-DD 형식 입력 시 23:59:59으로 설정)
+    end_date = request.args.get('end_date', today)
+    end_datetime = f"{end_date} 23:59:59"
     
     if not start_date or not end_date:
         return "Missing date parameters", 400
@@ -116,7 +129,7 @@ def download_excel():
     query = f"""
         SELECT timestamp, temperature, humidity 
         FROM sensor_data 
-        WHERE timestamp BETWEEN '{start_date}' AND '{end_date}'
+        WHERE timestamp BETWEEN '{start_datetime}' AND '{end_datetime}'
         ORDER BY timestamp DESC
     """
     df = pd.read_sql(query, engine)
@@ -135,7 +148,37 @@ def download_excel():
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
+# 최신 1분 데이터를 DB에서 가져오는 함수
+def get_temperature_data():
+    try:
+        with app.app_context():
+            connection = pymysql.connect(**DB_CONFIG)
+            cursor = connection.cursor()
+            query = "SELECT timestamp, temperature FROM sensor_data WHERE timestamp >= date_add(now(), interval -1 MINUTE) ORDER BY timestamp ASC"
+            cursor.execute(query)
+
+            rows = cursor.fetchall()
+            cursor.close()
+            connection.close()
+
+        # 결과를 JSON 형태로 변환
+        result = [{'timestamp': row['timestamp'].isoformat(), 'temperature':row['temperature']} for row in rows]
+        print(rows)
+        print(result)
+        return result
+
+    except Exception as e:
+        return str(e)
+
+# 실시간 데이터 제공 API (Ajax 요청 처리)
+@app.route('/get_data', methods=['GET'])
+def get_data():
+    eventlet.sleep(1)  # 비동기 대기 (실제 데이터 처리를 비동기적으로 하기 위한 시간 지연)
+    data = get_temperature_data()  # 데이터를 가져옴
+    print(data)
+    return jsonify(data)
 
 
 if __name__ == "__main__":
-    socketio.run(app, host="0.0.0.0", port=7000, debug=True)
+    eventlet.spawn(collect_sensor_data)
+    socketio.run(app, host="0.0.0.0", port=7000, debug=True,allow_unsafe_werkzeug=True)
