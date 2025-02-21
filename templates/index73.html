@@ -46,6 +46,18 @@
                             <p class="display-6" id="humidity">--</p>
                         </div>
                     </div>
+                    <div class="col-md-6">
+                        <div class="p-3 bg-light rounded">
+                            <h2 class="h5 text-muted">이산화탄소</h2>
+                            <p class="display-6" id="co2level">--</p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 bg-light rounded">
+                            <h2 class="h5 text-muted">산소</h2>
+                            <p class="display-6" id="o2level">--</p>
+                        </div>
+                    </div>
                 </div>
                 <div class="mt-4">
                     <p class="lead">기록상태: <span id="sensor-state" class="badge bg-secondary">OFF</span></p>
@@ -71,9 +83,13 @@
             if (data.state === "on") {
                 document.getElementById("temperature").innerText = data.temperature;
                 document.getElementById("humidity").innerText = data.humidity;
+                document.getElementById("co2level").innerText = data.co2level;
+                document.getElementById("o2level").innerText = data.o2level;
             } else {
                 document.getElementById("temperature").innerText = "--";
                 document.getElementById("humidity").innerText = "--";
+                document.getElementById("co2level").innerText = "--";
+                document.getElementById("o2level").innerText = "--";
             }
         });        
 
@@ -86,6 +102,8 @@
             if (data.state === "off" || data.state == null) {
                 document.getElementById("temperature").innerText = "--";
                 document.getElementById("humidity").innerText = "--";
+                document.getElementById("co2level").innerText = "--";
+                document.getElementById("o2level").innerText = "--";
             }
         });
 
@@ -135,16 +153,43 @@
     </div>
 </div>
 <canvas id="temperatureChart"></canvas>
+
+<div class="container my-5">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+            <h3 class="h4 mb-0">습도 그래프</h3>
+        </div>
+    </div>
+</div>
+<canvas id="humidityChart"></canvas>
+
+<div class="container my-5">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+            <h3 class="h4 mb-0">이산화탄소 그래프</h3>
+        </div>
+    </div>
+</div>
+<canvas id="co2levelChart"></canvas>
+
+<div class="container my-5">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+            <h3 class="h4 mb-0">산소 그래프</h3>
+        </div>
+    </div>
+</div>
+<canvas id="o2levelChart"></canvas>
+
 <script>
     const ctx = document.getElementById('temperatureChart').getContext('2d');
-
     const temperatureChart = new Chart(ctx, {
         type: 'line',
         data: {
             labels: [],  // 시간 데이터 (나중에 AJAX로 받아올 예정)
             datasets: [{
-                label: 'Temperature (°C)',
-                data: [],  // 온도 데이터 (나중에 AJAX로 받아올 예정)
+                label: 'temperature (C)',
+                data: [],  // 습도 데이터 (나중에 AJAX로 받아올 예정)
                 borderColor: 'rgba(75, 192, 192, 1)',
                 fill: false
             }]
@@ -171,37 +216,176 @@
                     max: 100,
                     title: {
                         display: true,
-                        text: 'Temperature (°C)'
+                        text: 'temperature (C)'
+                    }
+                }
+            }
+        }
+    });
+    const ctx1 = document.getElementById('humidityChart').getContext('2d');
+    const humidityChart = new Chart(ctx1, {
+        type: 'line',
+        data: {
+            labels: [],  // 시간 데이터 (나중에 AJAX로 받아올 예정)
+            datasets: [{
+                label: 'humidity (%)',
+                data: [],  // 습도 데이터 (나중에 AJAX로 받아올 예정)
+                borderColor: 'rgba(75, 192, 192, 1)',
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                x: {
+                    type: 'time',  // 시간 축 사용
+                    time: {
+                        unit: 'minute',  // 시간 단위 설정 (예: 'minute', 'hour', 'day')
+                        tooltipFormat: 'll HH:mm',
+                        displayFormats: {
+                            minute: 'HH:mm',  // 분 단위로 표시
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Time'
+                    }
+                },
+                y: {
+                    min: 0,
+                    max: 100,
+                    title: {
+                        display: true,
+                        text: 'humidity (%)'
                     }
                 }
             }
         }
     });
 
+    const ctx2 = document.getElementById('co2levelChart').getContext('2d');
+    const co2levelChart = new Chart(ctx2, {
+        type: 'line',
+        data: {
+            labels: [],  // 시간 데이터 (나중에 AJAX로 받아올 예정)
+            datasets: [{
+                label: 'co2level (ppm)',
+                data: [],  // 이산화탄소 데이터 (나중에 AJAX로 받아올 예정)
+                borderColor: 'rgba(75, 192, 192, 1)',
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                x: {
+                    type: 'time',  // 시간 축 사용
+                    time: {
+                        unit: 'minute',  // 시간 단위 설정 (예: 'minute', 'hour', 'day')
+                        tooltipFormat: 'll HH:mm',
+                        displayFormats: {
+                            minute: 'HH:mm',  // 분 단위로 표시
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Time'
+                    }
+                },
+                y: {
+                    min: 100,
+                    max: 2000,
+                    title: {
+                        display: true,
+                        text: 'co2level (ppm)'
+                    }
+                }
+            }
+        }
+    });
+    const ctx3 = document.getElementById('o2levelChart').getContext('2d');
+    const o2levelChart = new Chart(ctx3, {
+        type: 'line',
+        data: {
+            labels: [],  // 시간 데이터 (나중에 AJAX로 받아올 예정)
+            datasets: [{
+                label: 'o2level (%)',
+                data: [],  // 산소농도 데이터 (나중에 AJAX로 받아올 예정)
+                borderColor: 'rgba(75, 192, 192, 1)',
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                x: {
+                    type: 'time',  // 시간 축 사용
+                    time: {
+                        unit: 'minute',  // 시간 단위 설정 (예: 'minute', 'hour', 'day')
+                        tooltipFormat: 'll HH:mm',
+                        displayFormats: {
+                            minute: 'HH:mm',  // 분 단위로 표시
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Time'
+                    }
+                },
+                y: {
+                    min: 0,
+                    max: 100,
+                    title: {
+                        display: true,
+                        text: 'o2level (%)'
+                    }
+                }
+            }
+        }
+    });
     // AJAX로 데이터를 가져와서 차트 업데이트
     function updateChartData() {
         $.get('/get_data', function(data) {
             const labels = [];
             const temperatureData = [];
+            const humidityData = [];
+            const co2levelData = [];
+            const o2levelData = [];
             
             data.forEach(function(row) {
                 labels.push(new Date(row.timestamp));  // luxon 사용하여 날짜 객체로 변환
                 temperatureData.push(row.temperature);  // 온도 값
+                humidityData.push(row.humidity);  // 습도 값
+                co2levelData.push(row.co2level);  // 이산화탄소 값
+                o2levelData.push(row.o2level);  // 산소 값
             });
 
             // 차트 데이터 갱신
             temperatureChart.data.labels = labels;
             temperatureChart.data.datasets[0].data = temperatureData;
 
+            humidityChart.data.labels = labels;
+            humidityChart.data.datasets[0].data = humidityData;
+
+            co2levelChart.data.labels = labels;
+            co2levelChart.data.datasets[0].data = co2levelData;
+
+            o2levelChart.data.labels = labels;
+            o2levelChart.data.datasets[0].data = o2levelData;
+
             // 차트 업데이트
             temperatureChart.update();
+            humidityChart.update();
+            co2levelChart.update();
+            o2levelChart.update();
+
         }).fail(function() {
             console.error("Error fetching data.");
         });
     }
 
     // 1초마다 데이터 갱신
-    setInterval(updateChartData, 4000);
+    setInterval(updateChartData, 3000);
 </script>
 
 </body>

@@ -54,17 +54,17 @@ def update_sensor_state(state):
     sensor_state = state
     print(f"센서 상태 변경: {state}")
 
-def insert_sensor_data(temperature, humidity):
+def insert_sensor_data(temperature, humidity, co2level, o2level):
     """ 센서 데이터를 데이터베이스에 삽입 """
     connection = pymysql.connect(**DB_CONFIG)
     with connection.cursor() as cursor:
         query = """
-            INSERT INTO sensor_data (timestamp, temperature, humidity) 
-            VALUES (NOW(), %s, %s)
+            INSERT INTO sensor_data (timestamp, temperature, humidity,co2level, o2level) 
+            VALUES (NOW(), %s, %s, %s, %s)
         """
-        cursor.execute(query, (temperature, humidity))
+        cursor.execute(query, (temperature, humidity,co2level, o2level))
         connection.commit()
-        data = {"temperature": round(temperature, 1),"humidity": round(humidity, 1),"state":"on"}
+        data = {"temperature": round(temperature, 1),"humidity": round(humidity, 1),"co2level": round(co2level, 1),"o2level": round(o2level, 1),"state":"on"}
         socketio.emit("update_data",data)  # 클라이언트로 메시지 전송   
         print(f"📡 데이터 전송: {data}")
     connection.close()
@@ -76,10 +76,14 @@ def collect_sensor_data():
             try:
                 #temperature = round(random.uniform(20.0, 30.0), 2)  # 랜덤 온도 생성
                 #humidity = round(random.uniform(40.0, 60.0), 2)  # 랜덤 습도 생성
+                co2level = random.randint(400, 1000)  # 400ppm ~ 1000ppm
+                o2level = random.uniform(20.5, 21.5)  # 20.5% ~ 21.5% O2
                 humidity, temperature = Adafruit_DHT.read_retry(DHT_SENSOR, DHT_PIN)
                 if humidity is not None and temperature is not None:
-                    insert_sensor_data(temperature, humidity)
-                    print(f"Inserted: Temp={temperature}, Humidity={humidity}")
+                    insert_sensor_data(temperature, humidity, co2level, o2level)
+                    print(f"Inserted: Temp={temperature}, Humidity={humidity}, co2level={co2level},o2level={o2level}")
+                else:
+                    print("temperature,humidity data error")            
             except Exception as e:
                     print(f"Error inserting sensor data: {e}")
         time.sleep(3)  # 1초마다 실행
@@ -149,12 +153,12 @@ def download_excel():
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
 # 최신 1분 데이터를 DB에서 가져오는 함수
-def get_temperature_data():
+def get_sensor_data():
     try:
         with app.app_context():
             connection = pymysql.connect(**DB_CONFIG)
             cursor = connection.cursor()
-            query = "SELECT timestamp, temperature FROM sensor_data WHERE timestamp >= date_add(now(), interval -1 MINUTE) ORDER BY timestamp ASC"
+            query = "SELECT timestamp, temperature, humidity ,co2level, o2level FROM sensor_data WHERE timestamp >= date_add(now(), interval -1 MINUTE) ORDER BY timestamp ASC"
             cursor.execute(query)
 
             rows = cursor.fetchall()
@@ -162,7 +166,7 @@ def get_temperature_data():
             connection.close()
 
         # 결과를 JSON 형태로 변환
-        result = [{'timestamp': row['timestamp'].isoformat(), 'temperature':row['temperature']} for row in rows]
+        result = [{'timestamp': row['timestamp'].isoformat(), 'temperature':row['temperature'], 'humidity':row['humidity'], 'co2level':row['co2level'], 'o2level':row['o2level']} for row in rows]
         print(rows)
         print(result)
         return result
@@ -174,7 +178,7 @@ def get_temperature_data():
 @app.route('/get_data', methods=['GET'])
 def get_data():
     eventlet.sleep(1)  # 비동기 대기 (실제 데이터 처리를 비동기적으로 하기 위한 시간 지연)
-    data = get_temperature_data()  # 데이터를 가져옴
+    data = get_sensor_data()  # 데이터를 가져옴
     print(data)
     return jsonify(data)
 
