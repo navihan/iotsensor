@@ -131,7 +131,7 @@ def download_excel():
     
     connection = pymysql.connect(**DB_CONFIG)
     query = f"""
-        SELECT timestamp, temperature, humidity 
+        SELECT timestamp, temperature, humidity, co2level, o2level 
         FROM sensor_data 
         WHERE timestamp BETWEEN '{start_datetime}' AND '{end_datetime}'
         ORDER BY timestamp DESC
@@ -158,7 +158,18 @@ def get_sensor_data():
         with app.app_context():
             connection = pymysql.connect(**DB_CONFIG)
             cursor = connection.cursor()
-            query = "SELECT timestamp, temperature, humidity ,co2level, o2level FROM sensor_data WHERE timestamp >= date_add(now(), interval -1 MINUTE) ORDER BY timestamp ASC"
+            query = '''   
+                SELECT 
+                DATE_FORMAT(timestamp, '%Y-%m-%d %H:%i') as time_group,
+                AVG(temperature) as temperature,
+                AVG(humidity) as humidity,
+                AVG(co2level) as co2level,
+                AVG(o2level) as o2level
+                FROM sensor_data
+                WHERE timestamp >= NOW() - INTERVAL 1 HOUR
+                GROUP BY time_group
+                ORDER BY time_group ASC;
+                '''
             cursor.execute(query)
 
             rows = cursor.fetchall()
@@ -166,7 +177,7 @@ def get_sensor_data():
             connection.close()
 
         # 결과를 JSON 형태로 변환
-        result = [{'timestamp': row['timestamp'].isoformat(), 'temperature':row['temperature'], 'humidity':row['humidity'], 'co2level':row['co2level'], 'o2level':row['o2level']} for row in rows]
+        result = [{'time_group': row['time_group'], 'temperature':row['temperature'], 'humidity':row['humidity'], 'co2level':row['co2level'], 'o2level':row['o2level']} for row in rows]
         print(rows)
         print(result)
         return result
@@ -175,12 +186,20 @@ def get_sensor_data():
         return str(e)
 
 # 실시간 데이터 제공 API (Ajax 요청 처리)
-@app.route('/get_data', methods=['GET'])
-def get_data():
-    eventlet.sleep(1)  # 비동기 대기 (실제 데이터 처리를 비동기적으로 하기 위한 시간 지연)
+#@app.route('/get_data', methods=['GET'])
+#def get_data():
+    eventlet.sleep(5)  # 비동기 대기 (실제 데이터 처리를 비동기적으로 하기 위한 시간 지연)
     data = get_sensor_data()  # 데이터를 가져옴
     print(data)
     return jsonify(data)
+
+@socketio.on('request_data')
+def send_data():
+    """웹소켓을 통해 1초마다 센서 데이터를 전송"""
+    while True:
+        data = get_sensor_data()
+        socketio.emit('sensor_data', data)
+        time.sleep(3)  # 1초 간격 전송
 
 
 if __name__ == "__main__":

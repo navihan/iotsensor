@@ -201,7 +201,7 @@
                     type: 'time',  // 시간 축 사용
                     time: {
                         unit: 'minute',  // 시간 단위 설정 (예: 'minute', 'hour', 'day')
-                        tooltipFormat: 'll HH:mm',
+                        tooltipFormat: 'HH:mm',
                         displayFormats: {
                             minute: 'HH:mm',  // 분 단위로 표시
                         }
@@ -241,7 +241,7 @@
                     type: 'time',  // 시간 축 사용
                     time: {
                         unit: 'minute',  // 시간 단위 설정 (예: 'minute', 'hour', 'day')
-                        tooltipFormat: 'll HH:mm',
+                        tooltipFormat: 'HH:mm',
                         displayFormats: {
                             minute: 'HH:mm',  // 분 단위로 표시
                         }
@@ -282,7 +282,7 @@
                     type: 'time',  // 시간 축 사용
                     time: {
                         unit: 'minute',  // 시간 단위 설정 (예: 'minute', 'hour', 'day')
-                        tooltipFormat: 'll HH:mm',
+                        tooltipFormat: 'HH:mm',
                         displayFormats: {
                             minute: 'HH:mm',  // 분 단위로 표시
                         }
@@ -322,7 +322,7 @@
                     type: 'time',  // 시간 축 사용
                     time: {
                         unit: 'minute',  // 시간 단위 설정 (예: 'minute', 'hour', 'day')
-                        tooltipFormat: 'll HH:mm',
+                        tooltipFormat: 'HH:mm',
                         displayFormats: {
                             minute: 'HH:mm',  // 분 단위로 표시
                         }
@@ -343,21 +343,34 @@
             }
         }
     });
-    // AJAX로 데이터를 가져와서 차트 업데이트
-    function updateChartData() {
-        $.get('/get_data', function(data) {
-            const labels = [];
-            const temperatureData = [];
-            const humidityData = [];
-            const co2levelData = [];
-            const o2levelData = [];
+            // 웹소켓 데이터 수신
+            socket.on('sensor_data', function(data) {
+            if (data.length === 0) return;
+            // 차트 데이터 저장 변수
+            var labels = [];
+            var temperatureData = [];
+            var humidityData = [];
+            var co2levelData = [];
+            var o2levelData = [];
             
-            data.forEach(function(row) {
-                labels.push(new Date(row.timestamp));  // luxon 사용하여 날짜 객체로 변환
-                temperatureData.push(row.temperature);  // 온도 값
-                humidityData.push(row.humidity);  // 습도 값
-                co2levelData.push(row.co2level);  // 이산화탄소 값
-                o2levelData.push(row.o2level);  // 산소 값
+            // 최신 1시간 데이터 사용
+            /*labels.length = 0;
+            temperatureData.length = 0;
+            humidityData.length = 0;
+            co2levelData.length = 0;
+            o2levelData.length = 0; */
+            
+            if (!Array.isArray(data)) {
+            console.error("Error: Data is not an array:", data);
+            return;
+            }
+
+            data.forEach(row => {
+                labels.push(row.time_group);
+                temperatureData.push(row.temperature);
+                humidityData.push(row.humidity);
+                co2levelData.push(row.co2level);
+                o2levelData.push(row.o2level);
             });
 
             // 차트 데이터 갱신
@@ -378,14 +391,10 @@
             humidityChart.update();
             co2levelChart.update();
             o2levelChart.update();
-
-        }).fail(function() {
-            console.error("Error fetching data.");
         });
-    }
 
-    // 1초마다 데이터 갱신
-    setInterval(updateChartData, 3000);
+        // 데이터 요청
+        socket.emit('request_data');
 </script>
 
 </body>
